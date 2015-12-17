@@ -1438,6 +1438,23 @@ With a numeric prefix argument N, do `kill-line' that many times."
   (paredit-check-forward-delete-in-comment)
   (kill-line))
 
+(defun split-comment (s)
+  (split-string s ";"))
+
+(defun chomp-end (str)
+      "Chomp tailing whitespace from STR."
+      (replace-regexp-in-string (rx (* (any " \t\n")) eos)
+                                ""
+                                str))
+
+(defun yank-handling-comments (s)
+  (let ((parts (split-comment s)))
+    (insert (chomp-end (car parts)))
+    (if (cadr parts)
+	(progn
+	  (move-end-of-line nil)
+	  (insert (concat " ;" (cadr parts)))))))
+
 (defun paredit-kill-sexps-on-line ()
   (if (paredit-in-char-p)               ; Move past the \ and prefix.
       (backward-char 2))                ; (# in Scheme/CL, ? in elisp)
@@ -1450,17 +1467,19 @@ With a numeric prefix argument N, do `kill-line' that many times."
       (if end-of-list-p (progn (up-list) (backward-char)))
       (if kill-whole-line
           (paredit-kill-sexps-on-whole-line beginning)
-        (kill-region beginning
-                     ;; If all of the S-expressions were on one line,
-                     ;; i.e. we're still on that line after moving past
-                     ;; the last one, kill the whole line, including
-                     ;; any comments; otherwise just kill to the end of
-                     ;; the last S-expression we found.  Be sure,
-                     ;; though, not to kill any closing parentheses.
-                     (if (and (not end-of-list-p)
-                              (eq (point-at-eol) eol))
-                         eol
-                         (point)))))))
+        (let ((endpoint (if (and (not end-of-list-p)
+				 (eq (point-at-eol) eol))
+			    eol
+			  (point))))
+	  (put-text-property beginning endpoint 'yank-handler '(yank-handling-comments nil nil nil))
+	  (kill-region beginning
+		       ;; If all of the S-expressions were on one line,
+		       ;; i.e. we're still on that line after moving past
+		       ;; the last one, kill the whole line, including
+		       ;; any comments; otherwise just kill to the end of
+		       ;; the last S-expression we found.  Be sure,
+		       ;; though, not to kill any closing parentheses.
+		       endpoint))))))
 
 ;;; Please do not try to understand this code unless you have a VERY
 ;;; good reason to do so.  I gave up trying to figure it out well
