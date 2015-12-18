@@ -1467,19 +1467,19 @@ With a numeric prefix argument N, do `kill-line' that many times."
       (if end-of-list-p (progn (up-list) (backward-char)))
       (if kill-whole-line
           (paredit-kill-sexps-on-whole-line beginning)
-        (let ((endpoint (if (and (not end-of-list-p)
-				 (eq (point-at-eol) eol))
-			    eol
-			  (point))))
+        (let ((endpoint
+	       ;; If all of the S-expressions were on one line,
+	       ;; i.e. we're still on that line after moving past
+	       ;; the last one, kill the whole line, including
+	       ;; any comments; otherwise just kill to the end of
+	       ;; the last S-expression we found.  Be sure,
+	       ;; though, not to kill any closing parentheses.
+	       (if (and (not end-of-list-p)
+			(eq (point-at-eol) eol))
+		   eol
+		 (point))))
 	  (put-text-property beginning endpoint 'yank-handler '(yank-handling-comments nil nil nil))
-	  (kill-region beginning
-		       ;; If all of the S-expressions were on one line,
-		       ;; i.e. we're still on that line after moving past
-		       ;; the last one, kill the whole line, including
-		       ;; any comments; otherwise just kill to the end of
-		       ;; the last S-expression we found.  Be sure,
-		       ;; though, not to kill any closing parentheses.
-		       endpoint))))))
+	  (kill-region beginning endpoint))))))
 
 ;;; Please do not try to understand this code unless you have a VERY
 ;;; good reason to do so.  I gave up trying to figure it out well
